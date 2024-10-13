@@ -44,18 +44,24 @@ def figure_BarPlot(exp_i:int, target_data:str, data, colors, base_dir, dpi, Alg_
     elif target_data == "Time":
         plt.title(f'Diff in calc time between methods (iter = {cnt_vec[exp_i]})', fontsize=18)
         plt.ylabel('Elapsed time (sec)', fontsize=18)
+    elif target_data == "Cost":
+        plt.title(f'Input & Accumulated PREC (iter = {cnt_vec[exp_i]})', fontsize=16)
+        plt.ylabel('Cost function', fontsize=18)
     else:
         raise ValueError(f"予期しないtarget_dataの値: {target_data}")
     plt.grid(True)
     if target_data == "PREC":
         filename = os.path.join(base_dir, "Accumlated-PREC-BarPlot", f"iter={cnt_vec[exp_i]}.png")
-    else:
+    elif target_data == "Time":
         filename = os.path.join(base_dir, "Time-BarPlot", f"iter={cnt_vec[exp_i]}.png")
+    else:
+        filename = os.path.join(base_dir, "Cost-BarPlot", f"iter={cnt_vec[exp_i]}.png")
+
     plt.savefig(filename, dpi= dpi)
     plt.close()
     return
 
-def figire_LineGraph(BO_vec, RS_vec, central_value, base_dir, dpi, Alg_vec, color, cnt_vec, trial_num):
+def figire_LineGraph(target_data, BO_vec, RS_vec, central_value, base_dir, dpi, Alg_vec, color, cnt_vec, trial_num):
     """
     折れ線グラフを描画し保存する
     """
@@ -67,45 +73,35 @@ def figire_LineGraph(BO_vec, RS_vec, central_value, base_dir, dpi, Alg_vec, colo
         # グラフのタイトルとラベルの設定
     plt.title(f'{central_value} value of {trial_num} times', fontsize=20)
     plt.xlabel('Function evaluation times', fontsize=20)
-    plt.ylabel('Accumulated Precipitation (%)', fontsize=20)
+    if target_data == "PREC":
+        plt.ylabel('Accumulated Precipitation (%)', fontsize=20)
+    else:
+        plt.ylabel('Cost function value', fontsize=20)
     plt.tight_layout()
     plt.legend(fontsize=18)
     plt.grid(True)
-    filename = os.path.join(base_dir, "Line-Graph", f"{central_value}-Accumulated-PREC.png")
+    filename = os.path.join(base_dir, "Line-Graph", f"{target_data}_{central_value}.png")
     plt.savefig(filename, dpi = dpi)
     plt.close()
     return
 
-def write_summary(BO_vec, RS_vec, central_value:str, f, trial_num, cnt_vec):
-    f.write(f"\n{central_value} Accumulated PREC(%) {trial_num} times; BBF={cnt_vec}")
+def write_summary(target_data, BO_vec, RS_vec, central_value:str, f, trial_num, cnt_vec):
+    if target_data == "PREC":
+        f.write(f"\n{central_value} Accumulated PREC(%) {trial_num} times; BBF={cnt_vec}")
+    else:
+        f.write(f"\n{central_value} Cost function value {trial_num} times; BBF={cnt_vec}")
     f.write(f"\n{BO_vec=}")
     f.write(f"\n{RS_vec=}")
     return 
 
-def central_summary(BO_vec, RS_vec, central_value:str, f, base_dir, dpi, Alg_vec, color, trial_num:int, cnt_vec):
-    figire_LineGraph(BO_vec, RS_vec, central_value, base_dir, dpi, Alg_vec, color, cnt_vec, trial_num)
-    write_summary(BO_vec, RS_vec, central_value, f, trial_num, cnt_vec)
+def central_summary(target_data, BO_vec, RS_vec, central_value:str, f, base_dir, dpi, Alg_vec, color, trial_num:int, cnt_vec):
+    figire_LineGraph(target_data, BO_vec, RS_vec, central_value, base_dir, dpi, Alg_vec, color, cnt_vec, trial_num)
+    write_summary(target_data, BO_vec, RS_vec, central_value, f, trial_num, cnt_vec)
     return 
 
-def vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_time_matrix, max_iter_vec,
-         f,  base_dir, dpi, Alg_vec, color, trial_num:int, cnt_vec):
-    #累積降水量の箱ひげ図比較
-    f.write(f"\nBO_ratio_matrix = \n{BO_ratio_matrix}")
-    f.write(f"\nRS_ratio_matrix = \n{RS_ratio_matrix}")
+def line_graph(target_data:str, BO_ratio_matrix, RS_ratio_matrix, max_iter_vec, f,  base_dir, dpi, Alg_vec, color, trial_num, cnt_vec):
+    
     exp_num = len(max_iter_vec)
-    for exp_i in range(exp_num):
-        data = [BO_ratio_matrix[exp_i, :], RS_ratio_matrix[exp_i, :]]
-        figure_BarPlot(exp_i, "PREC", data, color, base_dir, dpi, Alg_vec, cnt_vec)
-
-    #timeの箱ひげ図比較
-    f.write(f"\nBO_time_matrix = \n{BO_time_matrix}")
-    f.write(f"\nRS_time_matrix = \n{RS_time_matrix}")
-    for exp_i in range(exp_num):
-        data = [BO_time_matrix[exp_i, :], RS_time_matrix[exp_i, :]]
-        figure_BarPlot(exp_i, "Time", data, color, base_dir, dpi, Alg_vec, cnt_vec)
-
-
-        #累積降水量の折れ線グラフ比較
     #各手法の平均値比較
     BO_vec = np.zeros(exp_num) #各要素には各BBFの累積降水量%平均値が入る
     RS_vec = np.zeros(exp_num)  
@@ -114,7 +110,7 @@ def vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_ti
         BO_vec[exp_i] = np.mean(BO_ratio_matrix[exp_i, :])
         RS_vec[exp_i] = np.mean(RS_ratio_matrix[exp_i, :])
 
-    central_summary(BO_vec, RS_vec, "Mean", f, base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
+    central_summary(target_data, BO_vec, RS_vec, "Mean", f, base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
 
     #各手法の中央値比較
 
@@ -122,7 +118,7 @@ def vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_ti
         BO_vec[exp_i] = np.median(BO_ratio_matrix[exp_i, :])
         RS_vec[exp_i] = np.median(RS_ratio_matrix[exp_i, :])
 
-    central_summary(BO_vec, RS_vec, "Median", f, base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
+    central_summary(target_data, BO_vec, RS_vec, "Median", f, base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
 
     #各手法の最小値(good)比較
     for trial_i in range(trial_num):
@@ -136,7 +132,7 @@ def vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_ti
             if RS_ratio_matrix[exp_i, trial_i] < RS_vec[exp_i]:
                 RS_vec[exp_i] = RS_ratio_matrix[exp_i, trial_i]
 
-    central_summary(BO_vec, RS_vec, "Min", f, base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
+    central_summary(target_data, BO_vec, RS_vec, "Min", f, base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
 
     #各手法の最大値(bad)比較
     for trial_i in range(trial_num):
@@ -149,6 +145,34 @@ def vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_ti
                 BO_vec[exp_i] = BO_ratio_matrix[exp_i, trial_i]
             if RS_ratio_matrix[exp_i, trial_i] > RS_vec[exp_i]:
                 RS_vec[exp_i] = RS_ratio_matrix[exp_i, trial_i]
+    central_summary(target_data, BO_vec, RS_vec, "Max", f, base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)    
+    return 
 
-    central_summary(BO_vec, RS_vec, "Max", f, base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
+ 
+def vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_time_matrix, BO_cost_matrix, RS_cost_matrix,
+        max_iter_vec, f,  base_dir, dpi, Alg_vec, color, trial_num:int, cnt_vec):
+    #累積降水量の箱ひげ図比較
+    f.write(f"\n{BO_ratio_matrix=}")
+    f.write(f"\n{RS_ratio_matrix=}")
+    exp_num = len(max_iter_vec)
+    for exp_i in range(exp_num):
+        data = [BO_ratio_matrix[exp_i, :], RS_ratio_matrix[exp_i, :]]
+        figure_BarPlot(exp_i, "PREC", data, color, base_dir, dpi, Alg_vec, cnt_vec)
+
+    #timeの箱ひげ図比較
+    f.write(f"\n{BO_time_matrix=}")
+    f.write(f"\n{RS_time_matrix=}")
+    for exp_i in range(exp_num):
+        data = [BO_time_matrix[exp_i, :], RS_time_matrix[exp_i, :]]
+        figure_BarPlot(exp_i, "Time", data, color, base_dir, dpi, Alg_vec, cnt_vec)
+
+    #コストの箱ひげ図比較
+    f.write(f"\n{BO_cost_matrix=}")
+    f.write(f"\n{RS_cost_matrix=}")
+    for exp_i in range(exp_num):
+        data = [BO_cost_matrix[exp_i, :], RS_cost_matrix[exp_i, :]]
+        figure_BarPlot(exp_i, "Cost", data, color, base_dir, dpi, Alg_vec, cnt_vec)
+
+    line_graph("PREC", BO_ratio_matrix, RS_ratio_matrix, max_iter_vec, f,  base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
+    line_graph("Cost", BO_cost_matrix, RS_cost_matrix, max_iter_vec, f,  base_dir, dpi, Alg_vec, color, trial_num, cnt_vec)
     return

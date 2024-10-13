@@ -15,6 +15,8 @@ from zoneinfo import ZoneInfo
 from optimize import random_search
 from analysis import *
 from make_directory import make_directory
+from config import coefficient_tanh, coefficient_accumulated, target_val, target_ratio
+from calc_object_val import calculate_objective_func_val
 
 matplotlib.use('Agg')
 
@@ -162,28 +164,10 @@ def sim(control_input):
     for i in range(40):
         sum_co[i]+=dat[1,0,i,0]*sim_time_sec
         sum_no[i]+=odat[1,0,i,0]*sim_time_sec
-    return sum_co, sum_no
+    
+    cost = calculate_objective_func_val(control_input, sum_co, Opt_purpose, num_input_grid)
+    return sum_co, sum_no, cost
 
-def calculate_objective_func_val(sum_co):
-    """
-    得られた各地点の累積降水量予測値(各Y-grid)から目的関数の値を導出する
-    """
-    represent_prec = 0
-    if Opt_purpose == "MinSum" or Opt_purpose == "MaxSum":
-        represent_prec = np.sum(sum_co)
-        print(represent_prec)
-
-    elif Opt_purpose == "MinMax" or Opt_purpose == "MaxMax":
-        represent_prec = 0
-        for j in range(40):  
-            if sum_co[j] > represent_prec:
-                represent_prec = sum_co[j] # 最大の累積降水量地点
-    else:
-        raise ValueError(f"予期しないOpt_purposeの値: {Opt_purpose}")
-
-    if Opt_purpose == "MaxSum" or Opt_purpose == "MaxMax":
-        represent_prec = -represent_prec # 目的関数の最小化問題に統一   
-    return represent_prec
 
 def black_box_function(control_input):
     """
@@ -217,7 +201,7 @@ def black_box_function(control_input):
         sum_co=np.zeros(40) #制御後の累積降水量
         for i in range(40):
             sum_co[i] += dat[1, 0, i, 0] * sim_time_sec
-    objective_val = calculate_objective_func_val(sum_co)
+    objective_val = calculate_objective_func_val(control_input, sum_co, Opt_purpose, num_input_grid)
 
     return objective_val
 
@@ -238,6 +222,10 @@ f.write(f"\ninitial_design_numdata_vec = {initial_design_numdata_vec}")
 f.write(f"\nmax_iter_vec = {max_iter_vec}")
 f.write(f"\nrandom_iter_vec = {random_iter_vec}")
 f.write(f"\ntrial_num = {trial_num}")
+f.write(f"\n{coefficient_tanh=}")
+f.write(f"\n{coefficient_accumulated=}")
+f.write(f"\n{target_ratio=}")
+f.write(f"\n{target_val=}")
 ################
 f.close()
 
@@ -245,6 +233,8 @@ BO_ratio_matrix = np.zeros((len(max_iter_vec), trial_num)) # iterの組み合わ
 RS_ratio_matrix = np.zeros((len(max_iter_vec), trial_num))
 BO_time_matrix = np.zeros((len(max_iter_vec), trial_num)) 
 RS_time_matrix = np.zeros((len(max_iter_vec), trial_num))
+BO_cost_matrix = np.zeros((len(max_iter_vec), trial_num))
+RS_cost_matrix = np.zeros((len(max_iter_vec), trial_num))
 
 BO_file = os.path.join(base_dir, "summary", f"{Alg_vec[0]}.txt")
 RS_file = os.path.join(base_dir, "summary", f"{Alg_vec[1]}.txt")
@@ -305,7 +295,7 @@ with open(BO_file, 'w') as f_BO, open(RS_file, 'w') as f_RS:
             f_BO.write(f"\n入力値:{min_input}")
             f_BO.write(f"\n経過時間:{time_diff}sec")
             f_BO.write(f"\nnum_evaluation of BBF = {cnt_vec[exp_i]}")
-            sum_co, sum_no = sim(min_input)
+            sum_co, sum_no, BO_cost_matrix[exp_i, trial_i] = sim(min_input)
             SUM_no = sum_no
             BO_ratio_matrix[exp_i, trial_i] = calculate_PREC_rate(sum_co, sum_no)
             BO_time_matrix[exp_i, trial_i] = time_diff
@@ -328,7 +318,7 @@ with open(BO_file, 'w') as f_BO, open(RS_file, 'w') as f_RS:
             f_RS.write(f"\n入力値:{best_params}")
             f_RS.write(f"\n経過時間:{time_diff}sec")
             f_RS.write(f"\nnum_evaluation of BBF = {cnt_vec[exp_i]}")
-            sum_co, sum_no = sim(best_params)
+            sum_co, sum_no, RS_cost_matrix[exp_i, trial_i] = sim(best_params)
             sum_RS_MOMY = sum_co
             RS_ratio_matrix[exp_i, trial_i] =  calculate_PREC_rate(sum_co, sum_no)
             RS_time_matrix[exp_i, trial_i] = time_diff
@@ -338,6 +328,7 @@ filename = f"summary.txt"
 config_file_path = os.path.join(base_dir, "summary", filename)  
 f = open(config_file_path, 'w')
 
-vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_time_matrix, max_iter_vec,
-         f, base_dir, dpi, Alg_vec, colors6, trial_num, cnt_vec)
+vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_time_matrix, 
+        BO_cost_matrix, RS_cost_matrix, max_iter_vec,
+        f, base_dir, dpi, Alg_vec, colors6, trial_num, cnt_vec)
 f.close()

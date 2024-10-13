@@ -1,0 +1,7 @@
+
+BO_ratio_matrix=array([[87.49665157, 82.86886399]])
+RS_ratio_matrix=array([[87.49665157, 91.8683888 ]])
+BO_time_matrix=array([[25.66068506, 25.42040229]])
+RS_time_matrix=array([[24.47949743, 24.40639687]])
+BO_cost_matrix=array([[ 5.0772702 , 16.09946946]])
+RS_cost_matrix=array([[ 5.0772702 , 84.21099932]])

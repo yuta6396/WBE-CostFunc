@@ -10,10 +10,11 @@ import pytz
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from config import w_max, w_min, gene_length, crossover_rate, mutation_rate, lower_bound, upper_bound, alpha, tournament_size
+from config import coefficient_tanh, coefficient_accumulated, target_val, target_ratio, w_max, w_min, gene_length, crossover_rate, mutation_rate, lower_bound, upper_bound, alpha, tournament_size
 from optimize import *
 from analysis import *
 from make_directory import make_directory
+from calc_object_val import calculate_objective_func_val
 
 matplotlib.use('Agg')
 
@@ -148,28 +149,10 @@ def sim(control_input):
     for i in range(40):
         sum_co[i]+=dat[1,0,i,0]*sim_time_sec
         sum_no[i]+=odat[1,0,i,0]*sim_time_sec
-    return sum_co, sum_no
+    
+    cost = calculate_objective_func_val(control_input, sum_co, Opt_purpose, num_input_grid)
+    return sum_co, sum_no, cost
 
-def calculate_objective_func_val(sum_co):
-    """
-    得られた各地点の累積降水量予測値(各Y-grid)から目的関数の値を導出する
-    """
-    represent_prec = 0
-    if Opt_purpose == "MinSum" or Opt_purpose == "MaxSum":
-        represent_prec = np.sum(sum_co)
-        print(represent_prec)
-
-    elif Opt_purpose == "MinMax" or Opt_purpose == "MaxMax":
-        represent_prec = 0
-        for j in range(40):  
-            if sum_co[j] > represent_prec:
-                represent_prec = sum_co[j] # 最大の累積降水量地点
-    else:
-        raise ValueError(f"予期しないOpt_purposeの値: {Opt_purpose}")
-
-    if Opt_purpose == "MaxSum" or Opt_purpose == "MaxMax":
-        represent_prec = -represent_prec # 目的関数の最小化問題に統一   
-    return represent_prec
 
 def black_box_function(control_input):
     """
@@ -203,9 +186,7 @@ def black_box_function(control_input):
         sum_co=np.zeros(40) #制御後の累積降水量
         for i in range(40):
             sum_co[i] += dat[1, 0, i, 0] * sim_time_sec
-    result = 0
-    #f.write(f"\ncnt={int(cnt + cnt_base)}  :input={control_input}")
-    objective_val = calculate_objective_func_val(sum_co)
+    objective_val = calculate_objective_func_val(control_input, sum_co, Opt_purpose, num_input_grid)
 
     return objective_val
 
@@ -241,6 +222,10 @@ f.write(f"alpha={alpha}\n")
 f.write(f"tournament_size={tournament_size}\n")
 f.write(f"trial_num={trial_num}\n")
 f.write(f"{dpi=}")
+f.write(f"\n{coefficient_tanh=}")
+f.write(f"\n{coefficient_accumulated=}")
+f.write(f"\n{target_ratio=}")
+f.write(f"\n{target_val=}")
 ################
 f.close()
 
@@ -248,6 +233,8 @@ PSO_ratio_matrix = np.zeros((len(particles_vec), trial_num))
 GA_ratio_matrix = np.zeros((len(particles_vec), trial_num))
 PSO_time_matrix = np.zeros((len(particles_vec), trial_num))
 GA_time_matrix = np.zeros((len(particles_vec), trial_num))
+PSO_cost_matrix = np.zeros((len(particles_vec), trial_num))
+GA_cost_matrix = np.zeros((len(particles_vec), trial_num))
 
 PSO_file = os.path.join(base_dir, "summary", f"{Alg_vec[0]}.txt")
 GA_file = os.path.join(base_dir, "summary", f"{Alg_vec[1]}.txt")
@@ -269,13 +256,12 @@ with open(PSO_file, 'w') as f_PSO, open(GA_file, 'w') as f_GA:
             best_position, result_value  = PSO(black_box_function, bounds_MOMY, particles_vec[exp_i], iterations_vec[exp_i], f_PSO)
             end = time.time()  # 現在時刻（処理完了後）を取得
             time_diff = end - start
-            f_PSO.write(f"\n最小値:{result_value[iterations_vec[exp_i]-1]}")
+            f_PSO.write(f"\n最小値（目的関数）:{result_value[iterations_vec[exp_i]-1]}")
             f_PSO.write(f"\n入力値:{best_position}")
             f_PSO.write(f"\n経過時間:{time_diff}sec")
             f_PSO.write(f"\nnum_evaluation of BBF = {cnt_vec[exp_i]}")
 
-            sum_co, sum_no = sim(best_position)
-            calculate_PREC_rate(sum_co, sum_no)
+            sum_co, sum_no, PSO_cost_matrix[exp_i, trial_i] = sim(best_position)
             PSO_ratio_matrix[exp_i, trial_i] = calculate_PREC_rate(sum_co, sum_no)
             PSO_time_matrix[exp_i, trial_i] = time_diff
 
@@ -292,12 +278,12 @@ with open(PSO_file, 'w') as f_PSO, open(GA_file, 'w') as f_GA:
             end = time.time()  # 現在時刻（処理完了後）を取得
             time_diff = end - start
 
-            f_GA.write(f"\n最小値:{best_fitness}")
+            f_GA.write(f"\n最小値（目的関数）:{best_fitness}")
             f_GA.write(f"\n入力値:{best_individual}")
             f_GA.write(f"\n経過時間:{time_diff}sec")
             f_GA.write(f"\nnum_evaluation of BBF = {cnt_vec[exp_i]}")
 
-            sum_co, sum_no = sim(best_individual)
+            sum_co, sum_no, GA_cost_matrix[exp_i, trial_i] = sim(best_individual)
             GA_ratio_matrix[exp_i, trial_i] = calculate_PREC_rate(sum_co, sum_no)
             GA_time_matrix[exp_i, trial_i] = time_diff
 
@@ -307,7 +293,8 @@ filename = f"summary.txt"
 config_file_path = os.path.join(base_dir, "summary", filename)  
 f = open(config_file_path, 'w')
 
-vizualize_simulation(PSO_ratio_matrix, GA_ratio_matrix, PSO_time_matrix, GA_time_matrix, particles_vec,
+vizualize_simulation(PSO_ratio_matrix, GA_ratio_matrix, PSO_time_matrix, GA_time_matrix, 
+        PSO_cost_matrix, GA_cost_matrix, particles_vec,
          f, base_dir, dpi, Alg_vec, colors6, trial_num, cnt_vec)
 
 f.close()

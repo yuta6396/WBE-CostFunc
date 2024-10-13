@@ -1,0 +1,37 @@
+
+BO_ratio_matrix=array([[89.47366999, 83.86737901],
+       [89.47366999, 83.86737901]])
+RS_ratio_matrix=array([[87.49665157, 86.71103409],
+       [87.9910561 , 86.71103409]])
+BO_time_matrix=array([[21.49756074, 20.30811071],
+       [20.56857014, 20.48646164]])
+RS_time_matrix=array([[20.36227822, 19.84202862],
+       [20.93970156, 19.97343087]])
+BO_cost_matrix=array([[13.97715397,  1.98224867],
+       [13.97715397,  1.98224867]])
+RS_cost_matrix=array([[ 5.0772702 , 18.77696198],
+       [ 2.74044797, 18.77696198]])
+Mean Accumulated PREC(%) 2 times; BBF=[ 5. 10.]
+BO_vec=array([86.6705245, 86.6705245])
+RS_vec=array([87.10384283, 87.35104509])
+Median Accumulated PREC(%) 2 times; BBF=[ 5. 10.]
+BO_vec=array([86.6705245, 86.6705245])
+RS_vec=array([87.10384283, 87.35104509])
+Min Accumulated PREC(%) 2 times; BBF=[ 5. 10.]
+BO_vec=array([83.86737901, 83.86737901])
+RS_vec=array([86.71103409, 86.71103409])
+Max Accumulated PREC(%) 2 times; BBF=[ 5. 10.]
+BO_vec=array([89.47366999, 89.47366999])
+RS_vec=array([87.49665157, 87.9910561 ])
+Mean Cost function value 2 times; BBF=[ 5. 10.]
+BO_vec=array([7.97970132, 7.97970132])
+RS_vec=array([11.92711609, 10.75870498])
+Median Cost function value 2 times; BBF=[ 5. 10.]
+BO_vec=array([7.97970132, 7.97970132])
+RS_vec=array([11.92711609, 10.75870498])
+Min Cost function value 2 times; BBF=[ 5. 10.]
+BO_vec=array([1.98224867, 1.98224867])
+RS_vec=array([5.0772702 , 2.74044797])
+Max Cost function value 2 times; BBF=[ 5. 10.]
+BO_vec=array([13.97715397, 13.97715397])
+RS_vec=array([18.77696198, 18.77696198])

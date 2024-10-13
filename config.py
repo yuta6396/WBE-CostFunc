@@ -1,4 +1,8 @@
-
+##目的関数の係数
+coefficient_tanh = 2
+coefficient_accumulated = 50
+target_ratio = 0.9 #制御目標
+target_val = 96.5034798248 #制御前の結果
 #PSO LDWIM
 w_max = 0.9
 w_min = 0.4

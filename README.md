@@ -8,6 +8,11 @@ Warm Bubble Experimentを用いたシミュレーション. 目的関数に累�
 
 basicとの違い：目的関数の変更
 
+累積降水量をtanh()に入れて制御目標値を変曲点にすれば制御入力といい感じにバランスとれる
+制御なしver の空間全体の累積降水量= 2.412586995620245
+式：係数*tanh(制御後PREC-targetPREC)+ InputValue
+tanh=[-1, 1]係数いい感じにすればなるべく小さなInputで閾値以下のいい制御ができる
+
 ## ファイル構造
 - ~/scale-5.5.1/scale-rm/test/tutorial/ideal/WarmBubbleExperiment/WBE-CostFunc
     - sim_BORS.py
@@ -30,9 +35,10 @@ basicとの違い：目的関数の変更
         - BORS
             - シミュレーション時間ごとのファイル
                 - Accumulated-PREC-BarPlot
+                - Cost-BarPlot
                 - Line-Graph
                 - Time-BarPlot
-                - summary
+                - summary テキストメモ
         - PSOGA
 
 
