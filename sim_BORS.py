@@ -6,13 +6,15 @@ import matplotlib
 import subprocess
 from skopt import gp_minimize
 from skopt.space import Real
-from datetime import datetime
-import random
 # 時刻を計測するライブラリ
 import time
 import pytz
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+from optimize import random_search
+from analysis import *
+from make_directory import make_directory
 
 matplotlib.use('Agg')
 
@@ -29,10 +31,10 @@ num_input_grid = 3 #y=20~20+num_input_grid-1まで制御
 Opt_purpose = "MinSum" #MinSum, MinMax, MaxSum, MaxMinから選択
 
 initial_design_numdata_vec = [3] #BOのRS回数
-max_iter_vec = [10, 20, 20, 50, 50, 50]            #{10, 20, 20, 50]=10, 30, 50, 100と同値
+max_iter_vec = [5, 5]            #{10, 20, 20, 50]=10, 30, 50, 100と同値
 random_iter_vec = max_iter_vec
 
-trial_num = 10  #箱ひげ図作成時の繰り返し回数
+trial_num = 2  #箱ひげ図作成時の繰り返し回数
 
 dpi = 75 # 画像の解像度　スクリーンのみなら75以上　印刷用なら300以上
 colors6  = ['#4c72b0', '#f28e2b', '#55a868', '#c44e52'] # 論文用の色
@@ -40,6 +42,7 @@ colors6  = ['#4c72b0', '#f28e2b', '#55a868', '#c44e52'] # 論文用の色
 jst = pytz.timezone('Asia/Tokyo')# 日本時間のタイムゾーンを設定
 current_time = datetime.now(jst).strftime("%m-%d-%H-%M")
 base_dir = f"result/BORS/{current_time}/"
+
 cnt_vec = np.zeros(len(max_iter_vec))
 for i in range(len(max_iter_vec)):
     if i == 0:
@@ -79,7 +82,6 @@ orgfile = 'no-control.pe######.nc'
 file_path = os.path.dirname(os.path.abspath(__file__))
 gpyoptfile=f"gpyopt.pe######.nc"
 
-cnt=0
 
 def prepare_files(pe: int):
     """ファイルの準備と初期化を行う"""
@@ -183,7 +185,6 @@ def calculate_objective_func_val(sum_co):
         represent_prec = -represent_prec # 目的関数の最小化問題に統一   
     return represent_prec
 
-
 def black_box_function(control_input):
     """
     制御入力値列を入れると、制御結果となる目的関数値を返す
@@ -216,120 +217,13 @@ def black_box_function(control_input):
         sum_co=np.zeros(40) #制御後の累積降水量
         for i in range(40):
             sum_co[i] += dat[1, 0, i, 0] * sim_time_sec
-    result = 0
-    #f.write(f"\ncnt={int(cnt + cnt_base)}  :input={control_input}")
     objective_val = calculate_objective_func_val(sum_co)
 
     return objective_val
 
 
-#### ブラックボックス最適化手法 ####
-###ランダムサーチ アルゴリズム
-def random_search(objective_function, bounds, n_iterations, previous_best=None):
-    # 以前の最良のスコアとパラメータを初期化
-    input_history=[]
-    if previous_best is None:
-        best_score = float('inf')
-        best_params = None
-    else:
-        best_params, best_score = previous_best
-    for _ in range(n_iterations):
-        candidate = [np.random.uniform(b[0], b[1]) for b in bounds]
-        input_history.append(candidate)
-        score = objective_function(candidate)
-        if score < best_score:
-            best_score = score
-            best_params = candidate
-    f_RS.write(f"\n input_history \n{input_history}")
-
-    return best_params, best_score
-
-
-def random_reset(trial_i:int):
-    """  乱数種の準備"""
-    np.random.seed(trial_i) #乱数を再現可能にし, seedによる影響を平等にする
-    random.seed(trial_i)     # ランダムモジュールのシードも設定
-    return
-
-def calculate_PREC_rate(sum_co, sum_no):
-    total_sum_no = 0
-    total_sum_co = 0
-    for i in range(40):
-        total_sum_no += sum_no[i]
-        total_sum_co += sum_co[i]
-    sum_PREC_decrease  = 100*total_sum_co/total_sum_no
-    return sum_PREC_decrease
-
-def figure_BarPlot(exp_i:int, target_data:str, data):
-    """
-    箱ひげ図を描画し保存する
-    """
-    # 箱ひげ図の作成
-    fig, ax = plt.subplots(figsize=(5, 5))
-    box = ax.boxplot(data, patch_artist=True,medianprops=dict(color='black', linewidth=1))
-
-    # 箱ひげ図の色設定
-    for patch, color in zip(box['boxes'], colors6):
-        patch.set_facecolor(color)
-
-    # カテゴリラベルの設定
-    plt.xticks(ticks=range(1, len(Alg_vec) + 1), labels=Alg_vec, fontsize=18)
-    plt.yticks(fontsize=18)
-
-    # グラフのタイトルとラベルの設定
-    plt.xlabel('Optimization method', fontsize=18)    
-    if target_data == "PREC":
-        plt.title(f'1h Accumulated Precipitation (iter = {cnt_vec[exp_i]})', fontsize=16)
-        plt.ylabel('Accumulated precipitation (%)', fontsize=18)
-    elif target_data == "Time":
-        plt.title(f'Diff in calc time between methods (iter = {cnt_vec[exp_i]})', fontsize=18)
-        plt.ylabel('Elapsed time (sec)', fontsize=18)
-    else:
-        raise ValueError(f"予期しないtarget_dataの値: {target_data}")
-    plt.grid(True)
-    if target_data == "PREC":
-        filename = os.path.join(base_dir, "Accumlated-PREC-BarPlot", f"iter={cnt_vec[exp_i]}.png")
-    else:
-        filename = os.path.join(base_dir, "Time-BarPlot", f"iter={cnt_vec[exp_i]}.png")
-    plt.savefig(filename, dpi= dpi)
-    plt.close()
-    return
-
-def figire_LineGraph(BO_vec, RS_vec, central_value:str):
-    """
-    折れ線グラフを描画し保存する
-    """
-    lw = 2
-    ms = 8
-    plt.figure(figsize=(8, 6))
-    plt.plot(cnt_vec, BO_vec, marker='o', label=Alg_vec[0], color=colors6[0], lw=lw, ms=ms)
-    plt.plot(cnt_vec, RS_vec, marker='D', label=Alg_vec[1], color=colors6[3], lw=lw, ms=ms)
-        # グラフのタイトルとラベルの設定
-    plt.title(f'{central_value} value of {trial_num} times', fontsize=20)
-    plt.xlabel('Function evaluation times', fontsize=20)
-    plt.ylabel('Accumulated Precipitation (%)', fontsize=20)
-    plt.tight_layout()
-    plt.legend(fontsize=18)
-    plt.grid(True)
-    filename = os.path.join(base_dir, "Line-Graph", f"{central_value}-Accumulated-PREC.png")
-    plt.savefig(filename, dpi = dpi)
-    plt.close()
-    return
-
-def write_summary(BO_vec, RS_vec, central_value:str):
-    f.write(f"\n{central_value} Accumulated PREC(%) {trial_num} times; BBF={cnt_vec}")
-    f.write(f"\n{BO_vec=}")
-    f.write(f"\n{RS_vec=}")
-
 ###実行
-
-os.makedirs(base_dir, exist_ok=False)
-# 階層構造を作成
-sub_dirs = ["Accumlated-PREC-BarPlot", "Time-BarPlot", "Line-Graph", "summary"]
-for sub_dir in sub_dirs:
-    path = os.path.join(base_dir, sub_dir)
-    os.makedirs(path, exist_ok=True) 
-
+make_directory(base_dir)
  
 filename = f"config.txt"
 config_file_path = os.path.join(base_dir, filename)  # 修正ポイント
@@ -347,18 +241,15 @@ f.write(f"\ntrial_num = {trial_num}")
 ################
 f.close()
 
+BO_ratio_matrix = np.zeros((len(max_iter_vec), trial_num)) # iterの組み合わせ, 試行回数
+RS_ratio_matrix = np.zeros((len(max_iter_vec), trial_num))
+BO_time_matrix = np.zeros((len(max_iter_vec), trial_num)) 
+RS_time_matrix = np.zeros((len(max_iter_vec), trial_num))
+
 BO_file = os.path.join(base_dir, "summary", f"{Alg_vec[0]}.txt")
 RS_file = os.path.join(base_dir, "summary", f"{Alg_vec[1]}.txt")
 
-filename = f"summary.txt"
-config_file_path = os.path.join(base_dir, "summary", filename)  
-f = open(config_file_path, 'w')
 
-BO_ratio_matrix = np.zeros((len(max_iter_vec), trial_num)) # iterの組み合わせ, 試行回数
-RS_ratio_matrix = np.zeros((len(max_iter_vec), trial_num))
-
-BO_time_matrix = np.zeros((len(max_iter_vec), trial_num)) # iterの組み合わせ, 試行回数
-RS_time_matrix = np.zeros((len(max_iter_vec), trial_num))
 with open(BO_file, 'w') as f_BO, open(RS_file, 'w') as f_RS:
     for trial_i in range(trial_num):
         cnt_base = 0
@@ -420,16 +311,16 @@ with open(BO_file, 'w') as f_BO, open(RS_file, 'w') as f_RS:
             BO_time_matrix[exp_i, trial_i] = time_diff
 
 
-            ###Random
+            ###RS
             random_reset(trial_i)
             # パラメータの設定
             bounds_MOMY = [(-max_input, max_input)]*num_input_grid  # 探索範囲
             start = time.time()  # 現在時刻（処理開始前）を取得
             if exp_i == 0:
-                best_params, best_score = random_search(black_box_function, bounds_MOMY, random_iter_vec[exp_i])
+                best_params, best_score = random_search(black_box_function, bounds_MOMY, random_iter_vec[exp_i], f_RS)
             else:
                 np.random.rand(int(cnt_base*num_input_grid)) #同じ乱数列の続きを利用したい
-                best_params, best_score = random_search(black_box_function, bounds_MOMY, random_iter_vec[exp_i] , previous_best=(best_params, best_score))
+                best_params, best_score = random_search(black_box_function, bounds_MOMY, random_iter_vec[exp_i], f_RS, previous_best=(best_params, best_score))
             end = time.time()  # 現在時刻（処理完了後）を取得
             time_diff = end - start
 
@@ -442,71 +333,11 @@ with open(BO_file, 'w') as f_BO, open(RS_file, 'w') as f_RS:
             RS_ratio_matrix[exp_i, trial_i] =  calculate_PREC_rate(sum_co, sum_no)
             RS_time_matrix[exp_i, trial_i] = time_diff
 
+#シミュレーション結果の可視化
+filename = f"summary.txt"
+config_file_path = os.path.join(base_dir, "summary", filename)  
+f = open(config_file_path, 'w')
 
-#累積降水量の箱ひげ図比較
-f.write(f"\nBO_ratio_matrix = \n{BO_ratio_matrix}")
-f.write(f"\nRS_ratio_matrix = \n{RS_ratio_matrix}")
-for exp_i in range(len(max_iter_vec)):
-    data = [BO_ratio_matrix[exp_i, :], RS_ratio_matrix[exp_i, :]]
-    figure_BarPlot(exp_i, "PREC", data)
-
-#timeの箱ひげ図比較
-f.write(f"\nBO_time_matrix = \n{BO_time_matrix}")
-f.write(f"\nRS_time_matrix = \n{RS_time_matrix}")
-for exp_i in range(len(max_iter_vec)):
-    data = [BO_time_matrix[exp_i, :], RS_time_matrix[exp_i, :]]
-    figure_BarPlot(exp_i, "Time", data)
-
-
-    #累積降水量の折れ線グラフ比較
-#各手法の平均値比較
-BO_vec = np.zeros(len(max_iter_vec)) #各要素には各BBFの累積降水量%平均値が入る
-RS_vec = np.zeros(len(max_iter_vec))  
-
-for exp_i in range(len(max_iter_vec)):
-    BO_vec[exp_i] = np.mean(BO_ratio_matrix[exp_i, :])
-    RS_vec[exp_i] = np.mean(RS_ratio_matrix[exp_i, :])
-
-write_summary(BO_vec, RS_vec, "Mean")
-figire_LineGraph(BO_vec, RS_vec, "Mean")
-
-#各手法の中央値比較
-
-for exp_i in range(len(max_iter_vec)):
-    BO_vec[exp_i] = np.median(BO_ratio_matrix[exp_i, :])
-    RS_vec[exp_i] = np.median(RS_ratio_matrix[exp_i, :])
-
-write_summary(BO_vec, RS_vec, "Median")
-figire_LineGraph(BO_vec, RS_vec, "Median")
-
-#各手法の最小値(good)比較
-for trial_i in range(trial_num):
-    for exp_i in range(len(max_iter_vec)):
-        if trial_i == 0:
-            BO_vec[exp_i] = BO_ratio_matrix[exp_i, trial_i]
-            RS_vec[exp_i] = RS_ratio_matrix[exp_i, trial_i]
-
-        if BO_ratio_matrix[exp_i, trial_i] < BO_vec[exp_i]:
-            BO_vec[exp_i] = BO_ratio_matrix[exp_i, trial_i]
-        if RS_ratio_matrix[exp_i, trial_i] < RS_vec[exp_i]:
-            RS_vec[exp_i] = RS_ratio_matrix[exp_i, trial_i]
-
-write_summary(BO_vec, RS_vec, "Min")
-figire_LineGraph(BO_vec, RS_vec, "Min")
-
-#各手法の最大値(bad)比較
-for trial_i in range(trial_num):
-    for exp_i in range(len(max_iter_vec)):
-        if trial_i == 0:
-            BO_vec[exp_i] = BO_ratio_matrix[exp_i, trial_i]
-            RS_vec[exp_i] = RS_ratio_matrix[exp_i, trial_i]
-
-        if BO_ratio_matrix[exp_i, trial_i] > BO_vec[exp_i]:
-            BO_vec[exp_i] = BO_ratio_matrix[exp_i, trial_i]
-        if RS_ratio_matrix[exp_i, trial_i] > RS_vec[exp_i]:
-            RS_vec[exp_i] = RS_ratio_matrix[exp_i, trial_i]
-
-write_summary(BO_vec, RS_vec, "Max")
-figire_LineGraph(BO_vec, RS_vec, "Max")
-
+vizualize_simulation(BO_ratio_matrix, RS_ratio_matrix, BO_time_matrix, RS_time_matrix, max_iter_vec,
+         f, base_dir, dpi, Alg_vec, colors6, trial_num, cnt_vec)
 f.close()

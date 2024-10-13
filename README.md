@@ -1,16 +1,30 @@
-# WBE-AutomaticControlUnion-basic
+# WBE-CostFunc
 ## 概要
-Warm Bubble Experimentを用いた, 自動制御連合講演会用のシミュレーション(2024/10/10).
+Warm Bubble Experimentを用いたシミュレーション. 目的関数に累積降水量（原義？）と入力値の大きさを含める(2024/10/13).
 
-初期値介入による制御問題をBO, PSO, GA, RSの4手法を1度にsimulateできる（ユーザーはmain.pyを実行）.
+初期値介入による制御問題をBO, RS　もしくはPSO, GAの2手法をsimulateできる（ユーザーはsim_OO.pyを実行）.
 
-t=0の時の(y, z) = (20, 0), (21, 0), (22, 0)グリッドの変数MOMYを制御する
+基本実装：t=0の時の(y, z) = (20, 0), (21, 0), (22, 0)グリッドの変数MOMYを制御する
+
+basicとの違い：目的関数の変更
 
 ## ファイル構造
-- ~/scale-5.5.1/scale-rm/test/tutorial/ideal/WarmBubbleExperiment/WBE-AutomaticControlUnion-basic
+- ~/scale-5.5.1/scale-rm/test/tutorial/ideal/WarmBubbleExperiment/WBE-CostFunc
     - sim_BORS.py
 
     - sim_PSOGA.py
+
+    - optimize.py ブラックボックス最適化手法の実装
+
+    - analysis.py シミュレーション後の処理
+
+    - make_directory ディレクトリ階層構造を作成
+
+    - config.py ブラックボックス最適化手法のハイパーパラメータ
+
+    - calc_object_val.py 目的関数の計算　どんな目的関数にするか！
+
+    - visualize_input.py 入力値の探索過程の可視化（sim_OO.pyには含まれない）
 
     - results/              # グラフや結果を保存
         - BORS
