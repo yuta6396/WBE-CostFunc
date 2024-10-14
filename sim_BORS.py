@@ -33,10 +33,10 @@ num_input_grid = 3 #y=20~20+num_input_grid-1まで制御
 Opt_purpose = "MinSum" #MinSum, MinMax, MaxSum, MaxMinから選択
 
 initial_design_numdata_vec = [3] #BOのRS回数
-max_iter_vec = [5, 5]            #{10, 20, 20, 50]=10, 30, 50, 100と同値
+max_iter_vec = [10, 20, 20, 50, 50, 50]            #{10, 20, 20, 50]=10, 30, 50, 100と同値
 random_iter_vec = max_iter_vec
 
-trial_num = 2  #箱ひげ図作成時の繰り返し回数
+trial_num = 10  #箱ひげ図作成時の繰り返し回数
 
 dpi = 75 # 画像の解像度　スクリーンのみなら75以上　印刷用なら300以上
 colors6  = ['#4c72b0', '#f28e2b', '#55a868', '#c44e52'] # 論文用の色

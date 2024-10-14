@@ -30,8 +30,8 @@ Alg_vec = ["PSO", "GA"]
 num_input_grid = 3 #y=20~20+num_input_grid-1まで制御
 Opt_purpose = "MinSum" #MinSum, MinMax, MaxSum, MaxMinから選択
 
-particles_vec = [3]           # 粒子数
-iterations_vec = [2]        # 繰り返し回数
+particles_vec = [5, 10, 10, 10, 10]           # 粒子数
+iterations_vec = [2, 3, 5, 10, 15]        # 繰り返し回数
 pop_size_vec = particles_vec  # Population size
 num_generations_vec = iterations_vec  # Number of generations
 
@@ -39,7 +39,7 @@ num_generations_vec = iterations_vec  # Number of generations
 c1 = 2.0
 c2 = 2.0
 
-trial_num = 2  # 乱数種の数
+trial_num = 10  # 乱数種の数
 
 dpi = 75 # 画像の解像度　スクリーンのみなら75以上　印刷用なら300以上
 colors6  = ['#4c72b0', '#f28e2b', '#55a868', '#c44e52'] # 論文用の色
